@@ -225,7 +225,7 @@ Public Class ExcelManager
                                    End While
 
                                    ' Tạo chart tạm để chứa ảnh
-                                   Threading.Thread.Sleep(500)
+                                   Threading.Thread.Sleep(1000)
                                    chartObj = stuSheet.ChartObjects().Add(0, 0, printRange.Width, printRange.Height)
                                    chart = chartObj.Chart
                                    chart.Paste()
@@ -435,6 +435,128 @@ Public Class ExcelManager
                                GC.WaitForPendingFinalizers()
                            End Try
 
+                       End Sub)
+    End Function
+
+    Public Async Function InPhieuLai(ByVal phieuLienLacPath As String, ByVal studenList As String(),
+                                     progress As IProgress(Of Integer)) As Task
+        Await Task.Run(Sub()
+                           Dim excelApp As Excel.Application = Nothing
+                           Dim workbook As Excel.Workbook = Nothing
+                           Dim sheets As Excel.Sheets = Nothing
+
+                           Dim printRange As Excel.Range = Nothing
+                           Dim chartObj As Excel.ChartObject = Nothing
+                           Dim chart As Excel.Chart = Nothing
+
+                           Try
+                               ' Mở Excel
+                               excelApp = New Excel.Application()
+                               excelApp.Visible = False
+                               excelApp.DisplayAlerts = False
+                               excelApp.ErrorCheckingOptions.NumberAsText = False
+
+                               workbook = excelApp.Workbooks.Open(phieuLienLacPath)
+                               sheets = workbook.Sheets
+
+                               Dim tempSheet As Excel.Worksheet = CType(sheets("DanhSach"), Excel.Worksheet)
+                               Dim range As Excel.Range = tempSheet.UsedRange
+
+                               Dim rowCount As Integer = range.Rows.Count
+
+                               'Them 0 nếu nhập chưa đủ
+                               For i As Integer = 0 To studenList.Count - 1
+                                   studenList(i) = studenList(i).PadLeft(2, "0")
+                               Next
+
+                               Dim students As New List(Of Student)
+                               For rowIndex As Integer = 1 To rowCount
+                                   Dim sttCheck As String = Convert.ToString(tempSheet.Range("A" & rowIndex).Value2)
+                                   If sttCheck IsNot Nothing AndAlso studenList.Contains(sttCheck.PadLeft(2, "0")) Then
+                                       Dim stu As New Student
+                                       stu.STT = sttCheck
+                                       stu.HoTen = Convert.ToString(tempSheet.Range("B" & rowIndex).Value2)
+                                       students.Add(stu)
+                                   End If
+                               Next
+
+                               For Each s As Student In students
+                                   tempSheet = CType(sheets(s.HoTen), Excel.Worksheet)
+                                   tempSheet.Activate()
+
+                                   Threading.Thread.Sleep(500)
+
+                                   Dim printArea As String = tempSheet.PageSetup.PrintArea
+                                   If String.IsNullOrEmpty(printArea) Then
+                                       printRange = tempSheet.UsedRange
+                                   Else
+                                       printRange = tempSheet.Range(printArea)
+                                   End If
+
+                                   Dim maxRetries As Integer = 3
+                                   Dim retryCount As Integer = 0
+                                   Dim success As Boolean = False
+
+                                   While retryCount < maxRetries AndAlso Not success
+                                       Try
+                                           printRange.CopyPicture(Excel.XlPictureAppearance.xlPrinter, Excel.XlCopyPictureFormat.xlPicture)
+                                           success = True
+                                       Catch ex As Exception
+                                           retryCount += 1
+                                           Console.WriteLine($"Lỗi CopyPicture (thử {retryCount}/{maxRetries}): {ex.Message}")
+                                           If retryCount = maxRetries Then
+                                               Throw New Exception($"Không thể sao chép vùng in cho học sinh {s.HoTen} sau {maxRetries} lần thử", ex)
+                                           End If
+                                           Threading.Thread.Sleep(500) ' Chờ 500ms trước khi thử lại
+                                       End Try
+                                   End While
+
+                                   ' Tạo chart tạm để chứa ảnh
+                                   Threading.Thread.Sleep(500)
+                                   chartObj = tempSheet.ChartObjects().Add(0, 0, printRange.Width, printRange.Height)
+                                   chart = chartObj.Chart
+                                   chart.Paste()
+
+                                   ' Xuất chart thành file ảnh
+                                   Dim imageFile As String = Path.Combine(Path.GetDirectoryName(phieuLienLacPath), $"{s.STT.ToString.PadLeft(2, "0") & "_" & s.HoTen}.jpeg")
+                                   chart.Export(Filename:=imageFile, FilterName:="JPEG")
+                                   Console.WriteLine("Xuất hình ảnh thành công: " & imageFile)
+                               Next
+
+                               Console.WriteLine("In lại file thành công: " & phieuLienLacPath)
+
+                           Catch ex As Exception
+                               Console.WriteLine("Lỗi: " & ex.Message)
+                               Throw ex
+                           Finally
+                               If chart IsNot Nothing Then
+                                   Marshal.ReleaseComObject(chart)
+                               End If
+                               If chartObj IsNot Nothing Then
+                                   Marshal.ReleaseComObject(chartObj)
+                               End If
+                               If printRange IsNot Nothing Then
+                                   Marshal.ReleaseComObject(printRange)
+                               End If
+
+                               If sheets IsNot Nothing Then
+                                   Marshal.ReleaseComObject(sheets)
+                               End If
+
+                               If workbook IsNot Nothing Then
+                                   workbook.Close(False)
+                                   Marshal.ReleaseComObject(workbook)
+                               End If
+
+                               If excelApp IsNot Nothing Then
+                                   excelApp.Quit()
+                                   Marshal.ReleaseComObject(excelApp)
+                               End If
+
+                               ' Buộc Garbage Collection dọn dẹp
+                               GC.Collect()
+                               GC.WaitForPendingFinalizers()
+                           End Try
                        End Sub)
     End Function
 

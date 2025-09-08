@@ -21,6 +21,7 @@ Public Class PhieuLienLac
             configManager.LoadConfig()
             TxtFolderPath.Text = configManager.GetConfig.InputFolder
             TxtExportFolder.Text = configManager.GetConfig.OutputFolder
+            TxtPhieuLienLacPath.Text = configManager.GetConfig.LastWeekExport
 
             LoadComboboxPhieuTongHop()
         Catch ex As Exception
@@ -55,8 +56,39 @@ Public Class PhieuLienLac
         End Using
     End Sub
 
+    Private Sub BtnSelectPhieuLienLac_Click(sender As Object, e As EventArgs) Handles BtnSelectPhieuLienLac.Click
+        Dim ofd As New OpenFileDialog()
+
+        ofd.Filter = "Excel Files|*.xlsx"
+        ofd.Title = "Chọn phiếu liên lạc"
+
+        ofd.Multiselect = False
+
+        If ofd.ShowDialog() = DialogResult.OK Then
+            TxtPhieuLienLacPath.Text = ofd.FileName
+        End If
+    End Sub
+
     Private Sub BtnTaoPhieu_Click(sender As Object, e As EventArgs) Handles BtnTaoPhieu.Click
         XuatPhieuLienLacTuan()
+    End Sub
+
+    Private Sub BtnInLai_Click(sender As Object, e As EventArgs) Handles BtnInLai.Click
+        InLaiPhieu()
+    End Sub
+
+    Private Sub ChkInLaiPhieu_CheckedChanged(sender As Object, e As EventArgs) Handles ChkInLaiPhieu.CheckedChanged
+        If ChkInLaiPhieu.Checked Then
+            TxtPhieuInLai.Enabled = True
+            BtnSelectPhieuLienLac.Enabled = True
+            TxtPhieuLienLacPath.Enabled = True
+            BtnInLai.Enabled = True
+        Else
+            TxtPhieuInLai.Enabled = False
+            BtnSelectPhieuLienLac.Enabled = False
+            TxtPhieuLienLacPath.Enabled = False
+            BtnInLai.Enabled = False
+        End If
     End Sub
 
 #Region "Load dữ liệu"
@@ -98,12 +130,19 @@ Public Class PhieuLienLac
             End If
 
             Me.Cursor = Cursors.WaitCursor
-            Me.Enabled = False
+            Me.Panel1.Enabled = False
             LblStatus.Text = $"Đang xử lý đọc file liên lạc tổng hợp..."
             ProgressBar1.Visible = True
             LblStatus.Visible = True
 
             Dim stuList As List(Of Student) = excelReader.ReadExcelFile(Path.Combine(TxtFolderPath.Text, CboFileTongHop.SelectedItem))
+
+            'Kiểm tra nội dung file tổng hợp đọc được
+            If stuList.Count = 0 Then
+                MsgBox("Không tồn tại học sinh trong file liên lạc tổng hợp hay file liên lạc tổng hợp không đúng định dạng", MsgBoxStyle.Exclamation)
+                CboFileTongHop.Focus()
+                Exit Sub
+            End If
 
             LblStatus.Text = $"Bắt đầu xử lý tạo phiếu liên lạc"
             ProgressBar1.Maximum = stuList.Count
@@ -135,11 +174,72 @@ Public Class PhieuLienLac
             'Lưu lại config để xuất lần sau
             configManager.GetConfig.InputFolder = TxtFolderPath.Text
             configManager.GetConfig.OutputFolder = Path.GetDirectoryName(TxtExportFolder.Text)
+            configManager.GetConfig.LastWeekExport = outputPath
             configManager.SaveConfig()
+            TxtPhieuLienLacPath.Text = outputPath
         Catch ex As Exception
             MsgBox(ex.Message & vbNewLine & ex.StackTrace, MsgBoxStyle.Critical, "Lỗi")
         Finally
-            Me.Enabled = True
+            Me.Panel1.Enabled = True
+            Me.Cursor = Cursors.Default
+            ProgressBar1.Visible = False
+            LblStatus.Visible = False
+        End Try
+    End Sub
+
+    Private Async Sub InLaiPhieu()
+        Dim excelReader As New ExcelManager
+        Try
+            Dim soThuTuHS As String() = Nothing
+
+            If String.IsNullOrEmpty(TxtPhieuLienLacPath.Text.Trim) Then
+                MsgBox("Chưa chọn file phiếu liên lạc đã xuất", MsgBoxStyle.Exclamation)
+                TxtPhieuLienLacPath.Focus()
+                Exit Sub
+            End If
+
+            If Not File.Exists(TxtPhieuLienLacPath.Text.Trim) Then
+                MsgBox("File phiếu liên lạc đã xuất không tồn tại hoặc đã bị xóa", MsgBoxStyle.Exclamation)
+                TxtPhieuLienLacPath.Focus()
+                Exit Sub
+            End If
+
+            If String.IsNullOrEmpty(TxtPhieuInLai.Text.Trim) Then
+                MsgBox("Chưa nhập số thứ tự học sinh cần in lại", MsgBoxStyle.Exclamation)
+                TxtPhieuInLai.Focus()
+                Exit Sub
+            End If
+
+            soThuTuHS = TxtPhieuInLai.Text.Trim.Split(",")
+
+            If soThuTuHS.Count = 0 Then
+                MsgBox("Chưa nhập số thứ tự học sinh cần in lại", MsgBoxStyle.Exclamation)
+                TxtPhieuInLai.Focus()
+                Exit Sub
+            End If
+
+            Me.Cursor = Cursors.WaitCursor
+            Me.Panel1.Enabled = False
+            ProgressBar1.Visible = True
+            LblStatus.Visible = True
+
+            LblStatus.Text = $"Bắt đầu xử in lại phiếu liên lạc"
+            ProgressBar1.Maximum = soThuTuHS.Count
+            ProgressBar1.Value = 0
+
+            Dim status As String = "Đang in lại phiếu liên lạc"
+            Dim progress = New Progress(Of Integer)(
+            Sub(value)
+                ProgressBar1.Value = value
+                LblStatus.Text = $"{status} {value}/{soThuTuHS.Count}"
+            End Sub)
+
+            Await excelReader.InPhieuLai(TxtPhieuLienLacPath.Text.Trim, soThuTuHS, progress)
+
+        Catch ex As Exception
+            MsgBox(ex.Message & vbNewLine & ex.StackTrace, MsgBoxStyle.Critical, "Lỗi")
+        Finally
+            Me.Panel1.Enabled = True
             Me.Cursor = Cursors.Default
             ProgressBar1.Visible = False
             LblStatus.Visible = False
@@ -173,5 +273,6 @@ Public Class PhieuLienLac
 
         Return True
     End Function
+
 #End Region
 End Class
