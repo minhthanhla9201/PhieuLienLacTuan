@@ -28,6 +28,7 @@ Public Class ConfigManager
             writer.WriteLine("InputFolder=" & _config.InputFolder)
             writer.WriteLine("OutputFolder=" & _config.OutputFolder)
             writer.WriteLine("LastWeekExport=" & _config.LastWeekExport)
+            writer.WriteLine("QRCodeLink=" & _config.QRCodeLink)
         End Using
     End Sub
 
@@ -56,6 +57,8 @@ Public Class ConfigManager
                     _config.OutputFolder = value
                 Case "LastWeekExport"
                     _config.LastWeekExport = value
+                Case "QRCodeLink"
+                    _config.QRCodeLink = value
             End Select
         Next
     End Sub
@@ -66,4 +69,5 @@ Public Class ConfigInfo
     Public Property InputFolder As String
     Public Property OutputFolder As String
     Public Property LastWeekExport As String
+    Public Property QRCodeLink As String
 End Class

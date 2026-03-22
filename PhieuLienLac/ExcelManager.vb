@@ -1,6 +1,8 @@
 ﻿Imports Microsoft.Office.Interop
 Imports System.Runtime.InteropServices
 Imports System.IO
+Imports QRCoder
+Imports Microsoft.Office.Interop.Excel
 
 Public Class ExcelManager
     Public Const INPUT_ROWINDEX_START_HYPERLINK As Integer = 2  'Dòng bắt đầu xuất hyperlink
@@ -9,11 +11,19 @@ Public Class ExcelManager
     Public Const INPUT_ROWINDEX_NXKQRL As Integer = 15  'Nhận xét KQRL
     Public Const INPUT_ROWINDEX_NXGVCN As Integer = 21  'Nhận xét GVCN
 
+    Private _startupPath As String
+    Private _qrcode As String
+
+    Public Sub New(startupPath As String, qrcode As String)
+        _startupPath = startupPath
+        _qrcode = qrcode
+    End Sub
+
     ''' <summary>
     ''' Đọc thông tin phiếu liên lạc
     ''' </summary>
     ''' <param name="filePath"></param>
-    Public Function ReadExcelFile(filePath As String) As List(Of Student)
+    Public Function ReadExcelFile(filePath As String, qrcodeLink As String) As List(Of Student)
         Dim excelApp As Excel.Application = Nothing
         Dim workbook As Excel.Workbook = Nothing
         Dim worksheet As Excel.Worksheet = Nothing
@@ -24,9 +34,10 @@ Public Class ExcelManager
 
         Try
             ' Mở Excel Application (ẩn đi)
-            excelApp = New Excel.Application()
-            excelApp.Visible = False
-            excelApp.DisplayAlerts = False
+            excelApp = New Excel.Application With {
+                .Visible = False,
+                .DisplayAlerts = False
+            }
 
             ' Mở file Excel
             workbook = excelApp.Workbooks.Open(filePath)
@@ -114,11 +125,14 @@ Public Class ExcelManager
                            Dim chartObj As Excel.ChartObject = Nothing
                            Dim chart As Excel.Chart = Nothing
 
+                           Dim exportStatus As Boolean = False
+
                            Try
                                ' Mở Excel
-                               excelApp = New Excel.Application()
-                               excelApp.Visible = False
-                               excelApp.DisplayAlerts = False
+                               excelApp = New Excel.Application With {
+                                   .Visible = False,
+                                   .DisplayAlerts = False
+                               }
                                excelApp.ErrorCheckingOptions.NumberAsText = False
 
                                ' Mở template
@@ -158,13 +172,13 @@ Public Class ExcelManager
                                    stuSheet.Range("A21").WrapText = False
 
                                    Dim nxGVCN() As String = stu.NhanXetGVCN.Split(New String() {vbCrLf, vbLf}, StringSplitOptions.RemoveEmptyEntries)
-                                   writeNhanXet(stuSheet, INPUT_ROWINDEX_NXGVCN, nxGVCN)
+                                   WriteNhanXet(stuSheet, INPUT_ROWINDEX_NXGVCN, nxGVCN)
 
                                    Dim nxKQRL() As String = stu.NhanXetKetQuaRenLuyen.Split(New String() {vbCrLf, vbLf}, StringSplitOptions.RemoveEmptyEntries)
-                                   writeNhanXet(stuSheet, INPUT_ROWINDEX_NXKQRL, nxKQRL)
+                                   WriteNhanXet(stuSheet, INPUT_ROWINDEX_NXKQRL, nxKQRL)
 
                                    Dim nxKQHT() As String = stu.NhanXetKetQuaHocTap.Split(New String() {vbCrLf, vbLf}, StringSplitOptions.RemoveEmptyEntries)
-                                   writeNhanXet(stuSheet, INPUT_ROWINDEX_NXKQHT, nxKQHT)
+                                   WriteNhanXet(stuSheet, INPUT_ROWINDEX_NXKQHT, nxKQHT)
 
                                    hyperlinkSheet.Range($"A{INPUT_ROWINDEX_START_HYPERLINK + i}").Value = stu.STT
                                    hyperlinkSheet.Range($"B{INPUT_ROWINDEX_START_HYPERLINK + i}").Value = stu.HoTen
@@ -188,55 +202,7 @@ Public Class ExcelManager
 
                                Console.WriteLine("Xuất dữ liệu ra Excel thành công: " & outputPath)
 
-                               Console.WriteLine("Bắt đầu xuất hình ảnh")
-                               workbook = excelApp.Workbooks.Open(outputPath)
-                               sheets = workbook.Sheets
-
-                               For i As Integer = 0 To studenList.Count - 1
-                                   Dim stuSheet As Excel.Worksheet = CType(sheets(studenList(i).HoTen), Excel.Worksheet)
-                                   stuSheet.Activate()
-
-                                   Dim printArea As String = stuSheet.PageSetup.PrintArea
-                                   If String.IsNullOrEmpty(printArea) Then
-                                       ' Nếu không có vùng in, sử dụng UsedRange hoặc vùng mặc định
-                                       printRange = stuSheet.UsedRange
-                                       Console.WriteLine("Không có vùng in được thiết lập. Sử dụng UsedRange: " & printRange.Address)
-                                   Else
-                                       printRange = stuSheet.Range(printArea)
-                                       Console.WriteLine("Sử dụng vùng in: " & printArea)
-                                   End If
-
-                                   Dim maxRetries As Integer = 3
-                                   Dim retryCount As Integer = 0
-                                   Dim success As Boolean = False
-
-                                   While retryCount < maxRetries AndAlso Not success
-                                       Try
-                                           printRange.CopyPicture(Excel.XlPictureAppearance.xlPrinter, Excel.XlCopyPictureFormat.xlPicture)
-                                           success = True
-                                       Catch ex As Exception
-                                           retryCount += 1
-                                           Console.WriteLine($"Lỗi CopyPicture (thử {retryCount}/{maxRetries}): {ex.Message}")
-                                           If retryCount = maxRetries Then
-                                               Throw New Exception($"Không thể sao chép vùng in cho học sinh {studenList(i).HoTen} sau {maxRetries} lần thử", ex)
-                                           End If
-                                           Threading.Thread.Sleep(500) ' Chờ 500ms trước khi thử lại
-                                       End Try
-                                   End While
-
-                                   ' Tạo chart tạm để chứa ảnh
-                                   Threading.Thread.Sleep(1000)
-                                   chartObj = stuSheet.ChartObjects().Add(0, 0, printRange.Width, printRange.Height)
-                                   chart = chartObj.Chart
-                                   chart.Paste()
-
-                                   ' Xuất chart thành file ảnh
-                                   Dim imageFile As String = Path.Combine(Path.GetDirectoryName(outputPath), $"{studenList(i).STT.ToString.PadLeft(2, "0") & "_" & studenList(i).HoTen}.jpeg")
-                                   chart.Export(Filename:=imageFile, FilterName:="JPEG")
-                                   Console.WriteLine("Xuất hình ảnh thành công: " & imageFile)
-
-                                   progress.Report(i + 1)
-                               Next
+                               exportStatus = True
 
                            Catch ex As Exception
                                Console.WriteLine("Lỗi: " & ex.Message)
@@ -274,11 +240,18 @@ Public Class ExcelManager
                                GC.Collect()
                                GC.WaitForPendingFinalizers()
                            End Try
+
+                           If exportStatus Then
+                               'Chèn thêm QR Code
+                               InsertQRCode(outputPath)
+                           End If
                        End Sub)
     End Function
 
     Public Async Function ExportPhieuLoi(ByVal templatePath As String, ByVal outputPath As String, ByVal studenList As List(Of Student),
-                                         progress As IProgress(Of Integer)) As Task
+                                         progress As IProgress(Of Integer)) As Task(Of List(Of String))
+        Dim editedNameList As New List(Of String)
+        Dim sttList As New List(Of String)
         Await Task.Run(Sub()
                            Dim excelApp As Excel.Application = Nothing
                            Dim workbook As Excel.Workbook = Nothing
@@ -292,11 +265,14 @@ Public Class ExcelManager
                            Dim chartObj As Excel.ChartObject = Nothing
                            Dim chart As Excel.Chart = Nothing
 
+                           Dim exportStatus As Boolean = False
+
                            Try
                                ' Mở Excel
-                               excelApp = New Excel.Application()
-                               excelApp.Visible = False
-                               excelApp.DisplayAlerts = False
+                               excelApp = New Excel.Application With {
+                                   .Visible = False,
+                                   .DisplayAlerts = False
+                               }
                                excelApp.ErrorCheckingOptions.NumberAsText = False
 
                                workbook = excelApp.Workbooks.Open(outputPath)
@@ -314,6 +290,8 @@ Public Class ExcelManager
                                    Dim stu = studenList(i)
                                    Dim stuSheet As Excel.Worksheet = CType(sheets(stu.HoTen), Excel.Worksheet)
                                    stuSheet.Delete()
+                                   sttList.Add(stu.STT)
+                                   editedNameList.Add(stu.HoTen)
 
                                    templateSheet.Copy(After:=workbook.Sheets(workbook.Sheets.Count))
                                    stuSheet = CType(workbook.Sheets(workbook.Sheets.Count), Excel.Worksheet)
@@ -335,62 +313,20 @@ Public Class ExcelManager
                                    stuSheet.Range("A21").WrapText = False
 
                                    Dim nxGVCN() As String = stu.NhanXetGVCN.Split(New String() {vbCrLf, vbLf}, StringSplitOptions.RemoveEmptyEntries)
-                                   writeNhanXet(stuSheet, INPUT_ROWINDEX_NXGVCN, nxGVCN)
+                                   WriteNhanXet(stuSheet, INPUT_ROWINDEX_NXGVCN, nxGVCN)
 
                                    Dim nxKQRL() As String = stu.NhanXetKetQuaRenLuyen.Split(New String() {vbCrLf, vbLf}, StringSplitOptions.RemoveEmptyEntries)
-                                   writeNhanXet(stuSheet, INPUT_ROWINDEX_NXKQRL, nxKQRL)
+                                   WriteNhanXet(stuSheet, INPUT_ROWINDEX_NXKQRL, nxKQRL)
 
                                    Dim nxKQHT() As String = stu.NhanXetKetQuaHocTap.Split(New String() {vbCrLf, vbLf}, StringSplitOptions.RemoveEmptyEntries)
-                                   writeNhanXet(stuSheet, INPUT_ROWINDEX_NXKQHT, nxKQHT)
-
-                                   stuSheet.Activate()
-                                   Threading.Thread.Sleep(500)
-
-                                   Dim printArea As String = stuSheet.PageSetup.PrintArea
-                                   If String.IsNullOrEmpty(printArea) Then
-                                       ' Nếu không có vùng in, sử dụng UsedRange hoặc vùng mặc định
-                                       printRange = stuSheet.UsedRange
-                                       Console.WriteLine("Không có vùng in được thiết lập. Sử dụng UsedRange: " & printRange.Address)
-                                   Else
-                                       printRange = stuSheet.Range(printArea)
-                                       Console.WriteLine("Sử dụng vùng in: " & printArea)
-                                   End If
-
-                                   Dim maxRetries As Integer = 3
-                                   Dim retryCount As Integer = 0
-                                   Dim success As Boolean = False
-
-                                   While retryCount < maxRetries AndAlso Not success
-                                       Try
-                                           printRange.CopyPicture(Excel.XlPictureAppearance.xlPrinter, Excel.XlCopyPictureFormat.xlPicture)
-                                           success = True
-                                       Catch ex As Exception
-                                           retryCount += 1
-                                           Console.WriteLine($"Lỗi CopyPicture (thử {retryCount}/{maxRetries}): {ex.Message}")
-                                           If retryCount = maxRetries Then
-                                               Throw New Exception($"Không thể sao chép vùng in cho học sinh {stu.HoTen} sau {maxRetries} lần thử", ex)
-                                           End If
-                                           Threading.Thread.Sleep(500) ' Chờ 500ms trước khi thử lại
-                                       End Try
-                                   End While
-
-                                   ' Tạo chart tạm để chứa ảnh
-                                   Threading.Thread.Sleep(500)
-                                   chartObj = stuSheet.ChartObjects().Add(0, 0, printRange.Width, printRange.Height)
-                                   chart = chartObj.Chart
-                                   chart.Paste()
-
-                                   ' Xuất chart thành file ảnh
-                                   Dim imageFile As String = Path.Combine(Path.GetDirectoryName(outputPath), $"{stu.STT.ToString.PadLeft(2, "0") & "_" & stu.HoTen}.jpeg")
-                                   chart.Export(Filename:=imageFile, FilterName:="JPEG")
-                                   Console.WriteLine("Xuất hình ảnh thành công: " & imageFile)
+                                   WriteNhanXet(stuSheet, INPUT_ROWINDEX_NXKQHT, nxKQHT)
 
                                    progress.Report(i + 1)
                                Next
 
                                ' Lưu ra file mới
                                workbook.Save()
-
+                               exportStatus = True
                                Console.WriteLine("Xuất dữ liệu lại ra Excel thành công: " & outputPath)
 
                            Catch ex As Exception
@@ -435,9 +371,18 @@ Public Class ExcelManager
                                GC.WaitForPendingFinalizers()
                            End Try
 
+                           InsertQRCode(outputPath, editedNameList)
                        End Sub)
+        Return sttList
     End Function
 
+    ''' <summary>
+    ''' Thực hiện in lại phiếu học sinh chỉ định
+    ''' </summary>
+    ''' <param name="phieuLienLacPath"></param>
+    ''' <param name="studenList">Danh sách số thứ tự hs</param>
+    ''' <param name="progress"></param>
+    ''' <returns></returns>
     Public Async Function InPhieuLai(ByVal phieuLienLacPath As String, ByVal studenList As String(),
                                      progress As IProgress(Of Integer)) As Task
         Await Task.Run(Sub()
@@ -451,9 +396,10 @@ Public Class ExcelManager
 
                            Try
                                ' Mở Excel
-                               excelApp = New Excel.Application()
-                               excelApp.Visible = False
-                               excelApp.DisplayAlerts = False
+                               excelApp = New Excel.Application With {
+                                   .Visible = False,
+                                   .DisplayAlerts = False
+                               }
                                excelApp.ErrorCheckingOptions.NumberAsText = False
 
                                workbook = excelApp.Workbooks.Open(phieuLienLacPath)
@@ -465,21 +411,29 @@ Public Class ExcelManager
                                Dim rowCount As Integer = range.Rows.Count
 
                                'Them 0 nếu nhập chưa đủ
-                               For i As Integer = 0 To studenList.Count - 1
-                                   studenList(i) = studenList(i).PadLeft(2, "0")
-                               Next
+                               If studenList IsNot Nothing Then
+                                   For i As Integer = 0 To studenList.Count - 1
+                                       studenList(i) = studenList(i).PadLeft(2, "0")
+                                   Next
+                               End If
 
                                Dim students As New List(Of Student)
                                For rowIndex As Integer = 1 To rowCount
                                    Dim sttCheck As String = Convert.ToString(tempSheet.Range("A" & rowIndex).Value2)
-                                   If sttCheck IsNot Nothing AndAlso studenList.Contains(sttCheck.PadLeft(2, "0")) Then
-                                       Dim stu As New Student
-                                       stu.STT = sttCheck
-                                       stu.HoTen = Convert.ToString(tempSheet.Range("B" & rowIndex).Value2)
-                                       students.Add(stu)
+                                   Dim intStt As Integer = 0
+                                   If Integer.TryParse(sttCheck, intStt) Then
+                                       'Trường hợp studenList = nothing thì in lại tất cả học sinh
+                                       If studenList Is Nothing OrElse studenList.Contains(sttCheck.PadLeft(2, "0")) Then
+                                           Dim stu As New Student With {
+                                           .STT = sttCheck,
+                                           .HoTen = Convert.ToString(tempSheet.Range("B" & rowIndex).Value2)
+                                       }
+                                           students.Add(stu)
+                                       End If
                                    End If
                                Next
 
+                               Dim reportCount = 0
                                For Each s As Student In students
                                    tempSheet = CType(sheets(s.HoTen), Excel.Worksheet)
                                    tempSheet.Activate()
@@ -514,6 +468,7 @@ Public Class ExcelManager
                                    ' Tạo chart tạm để chứa ảnh
                                    Threading.Thread.Sleep(500)
                                    chartObj = tempSheet.ChartObjects().Add(0, 0, printRange.Width, printRange.Height)
+                                   chartObj.Activate()
                                    chart = chartObj.Chart
                                    chart.Paste()
 
@@ -521,6 +476,9 @@ Public Class ExcelManager
                                    Dim imageFile As String = Path.Combine(Path.GetDirectoryName(phieuLienLacPath), $"{s.STT.ToString.PadLeft(2, "0") & "_" & s.HoTen}.jpeg")
                                    chart.Export(Filename:=imageFile, FilterName:="JPEG")
                                    Console.WriteLine("Xuất hình ảnh thành công: " & imageFile)
+
+                                   reportCount += 1
+                                   progress.Report(reportCount)
                                Next
 
                                Console.WriteLine("In lại file thành công: " & phieuLienLacPath)
@@ -566,7 +524,7 @@ Public Class ExcelManager
     ''' <param name="stuSheet"></param>
     ''' <param name="rowIndex"></param>
     ''' <param name="nx"></param>
-    Private Sub writeNhanXet(stuSheet As Excel.Worksheet, ByVal rowIndex As Integer, nx As String())
+    Private Sub WriteNhanXet(stuSheet As Excel.Worksheet, ByVal rowIndex As Integer, nx As String())
         If nx.Count <= 1 Then
             If nx.Count = 1 Then
                 stuSheet.Range($"A{rowIndex}").Value = nx(0)
@@ -584,4 +542,81 @@ Public Class ExcelManager
             Next
         End If
     End Sub
+
+    ''' <summary>
+    ''' Thêm QR Code vào các sheet đã tạo
+    ''' </summary>
+    ''' <param name="phieuLienLacPath"></param>
+    ''' <param name="editedList">DS tên học sinh</param>
+    Private Sub InsertQRCode(ByVal phieuLienLacPath As String, Optional editedList As List(Of String) = Nothing)
+        Try
+            OfficeOpenXml.ExcelPackage.License.SetNonCommercialPersonal("v0cry")
+            Dim qrpath = GenerateQRCode(_qrcode)
+
+            Dim file As New FileInfo(phieuLienLacPath)
+
+            Using package As New OfficeOpenXml.ExcelPackage(file)
+
+                Dim ws = package.Workbook.Worksheets("DanhSach")
+
+                If ws Is Nothing Then
+                    Throw New Exception("Không tìm thấy sheet DanhSach")
+                End If
+
+                If editedList Is Nothing Then
+                    Dim rowCount As Integer = ws.Dimension.End.Row
+
+                    editedList = New List(Of String)
+
+                    For rowIndex As Integer = 2 To rowCount
+                        Dim sttCheck As String = Convert.ToString(ws.Cells(rowIndex, 1).Value)
+
+                        If Not String.IsNullOrEmpty(sttCheck) Then
+                            Dim stu As New Student With {
+                                .STT = CInt(sttCheck),
+                                .HoTen = Convert.ToString(ws.Cells(rowIndex, 2).Value)
+                            }
+                            editedList.Add(stu.HoTen)
+                        End If
+                    Next
+                End If
+
+                For Each sheetName As String In editedList
+                    ws = package.Workbook.Worksheets(sheetName)
+                    Dim img = ws.Drawings.AddPicture($"QR_{sheetName}", New FileInfo(qrpath))
+                    img.SetPosition(1, 0, 13, 0)
+                    img.SetSize(90, 90)
+                Next
+
+                package.Save()
+
+            End Using
+        Catch ex As Exception
+            Throw
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' Tạo hình ảnh QR Code
+    ''' </summary>
+    ''' <param name="text"></param>
+    ''' <returns>url hình qrcode</returns>
+    Private Function GenerateQRCode(text As String)
+        'Tạo QRCode từ QR Link
+        Dim tempFolder = Path.Combine(_startupPath, "Temp")
+        Dim tempQRPath = Path.Combine(tempFolder, "stu_qrcodelink.png")
+        If Not Directory.Exists(tempFolder) Then
+            Directory.CreateDirectory(tempFolder)
+        End If
+
+        Dim qrGenerator As New QRCodeGenerator()
+        Dim qrData = qrGenerator.CreateQrCode(text, QRCodeGenerator.ECCLevel.Q)
+        Dim qrCode As New QRCode(qrData)
+
+        Dim qrImage As Bitmap = qrCode.GetGraphic(5)
+
+        qrImage.Save(tempQRPath, Imaging.ImageFormat.Png)
+
+        Return tempQRPath
+    End Function
 End Class

@@ -5,10 +5,10 @@ Public Class PhieuLienLac
 
     Private Sub ComboBox1_SelectedIndexChanged(sender As Object, e As EventArgs) Handles CboFileTongHop.SelectedIndexChanged
         If Not String.IsNullOrEmpty(CboFileTongHop.SelectedItem) Then
-            Dim tuan As String = Path.GetFileNameWithoutExtension(CboFileTongHop.SelectedItem).Split(" ")(1).Trim
-            TxtExportFolder.Text = Path.Combine(configManager.GetConfig.OutputFolder, "Tuan " & tuan)
+            Dim tuan As String = Path.GetFileNameWithoutExtension(CboFileTongHop.SelectedItem).Split("_")(1).Trim
+            TxtOutputFolder.Text = Path.Combine(configManager.GetConfig.OutputFolder, tuan)
         Else
-            TxtExportFolder.Text = configManager.GetConfig.OutputFolder
+            TxtOutputFolder.Text = configManager.GetConfig.OutputFolder
         End If
     End Sub
 
@@ -20,9 +20,8 @@ Public Class PhieuLienLac
             'Load config
             configManager.LoadConfig()
             TxtFolderPath.Text = configManager.GetConfig.InputFolder
-            TxtExportFolder.Text = configManager.GetConfig.OutputFolder
+            TxtOutputFolder.Text = configManager.GetConfig.OutputFolder
             TxtPhieuLienLacPath.Text = configManager.GetConfig.LastWeekExport
-
             LoadComboboxPhieuTongHop()
         Catch ex As Exception
             MsgBox(ex.Message, MsgBoxStyle.Critical, "Lỗi")
@@ -51,18 +50,17 @@ Public Class PhieuLienLac
 
             If dialog.ShowDialog() = DialogResult.OK Then
                 Dim selectedPath As String = dialog.SelectedPath
-                TxtExportFolder.Text = selectedPath
+                TxtOutputFolder.Text = selectedPath
             End If
         End Using
     End Sub
 
     Private Sub BtnSelectPhieuLienLac_Click(sender As Object, e As EventArgs) Handles BtnSelectPhieuLienLac.Click
-        Dim ofd As New OpenFileDialog()
-
-        ofd.Filter = "Excel Files|*.xlsx"
-        ofd.Title = "Chọn phiếu liên lạc"
-
-        ofd.Multiselect = False
+        Dim ofd As New OpenFileDialog With {
+            .Filter = "Excel Files|*.xlsx",
+            .Title = "Chọn phiếu liên lạc",
+            .Multiselect = False
+        }
 
         If ofd.ShowDialog() = DialogResult.OK Then
             TxtPhieuLienLacPath.Text = ofd.FileName
@@ -109,14 +107,14 @@ Public Class PhieuLienLac
 
 #Region "Xử lý xuất dữ liệu"
     Private Async Sub XuatPhieuLienLacTuan()
-        Dim excelReader As New ExcelManager
+        Dim excelReader As New ExcelManager(Application.StartupPath, TxtQRCodeData.Text.Trim)
         Try
             If Not CheckInput() Then
                 Exit Sub
             End If
 
-            If Directory.Exists(TxtExportFolder.Text) Then
-                Dim excelFiles = Directory.GetFiles(TxtExportFolder.Text, "*.jpeg*")
+            If Directory.Exists(TxtOutputFolder.Text) Then
+                Dim excelFiles = Directory.GetFiles(TxtOutputFolder.Text, "*.jpeg*")
                 If excelFiles.Count > 0 Then
                     Dim result As DialogResult = MessageBox.Show("Thư mục xuất đã có file xuất trước đó, nếu tiếp tục thì file cũ sẽ mất. Bạn muốn tiếp tục không?",
                                                                  "Xác nhận",
@@ -135,7 +133,7 @@ Public Class PhieuLienLac
             ProgressBar1.Visible = True
             LblStatus.Visible = True
 
-            Dim stuList As List(Of Student) = excelReader.ReadExcelFile(Path.Combine(TxtFolderPath.Text, CboFileTongHop.SelectedItem))
+            Dim stuList As List(Of Student) = excelReader.ReadExcelFile(Path.Combine(TxtFolderPath.Text, CboFileTongHop.SelectedItem), TxtQRCodeData.Text.Trim)
 
             'Kiểm tra nội dung file tổng hợp đọc được
             If stuList.Count = 0 Then
@@ -159,21 +157,25 @@ Public Class PhieuLienLac
             End Sub)
 
             'Tạo folder nếu chưa có
-            If Not Directory.Exists(TxtExportFolder.Text) Then
-                Directory.CreateDirectory(TxtExportFolder.Text)
+            If Not Directory.Exists(TxtOutputFolder.Text) Then
+                Directory.CreateDirectory(TxtOutputFolder.Text)
             End If
 
-            Dim outputPath As String = Path.Combine(TxtExportFolder.Text, $"PhieuLienLac_Tuan {stuList(0).Tuan}.xlsx")
+            Dim outputPath As String = Path.Combine(TxtOutputFolder.Text, $"PhieuLienLac_Tuan {stuList(0).Tuan}.xlsx")
             If ChkXuatPhieuLoi.Checked AndAlso File.Exists(outputPath) Then
-                Await excelReader.ExportPhieuLoi(configManager.GetConfig.TemplatePath, outputPath, stuList, progress)
+                Dim reprintList = Await excelReader.ExportPhieuLoi(configManager.GetConfig.TemplatePath, outputPath, stuList, progress)
+                Await excelReader.InPhieuLai(outputPath, reprintList.ToArray, progress)
             Else
                 Await excelReader.ExportToTemplate(configManager.GetConfig.TemplatePath, outputPath,
                                                    stuList, progress, ChkXuatPhieuLoi.Checked)
+                'Xuất hình phiếu liên lạc
+                Await excelReader.InPhieuLai(outputPath, Nothing, progress)
             End If
 
             'Lưu lại config để xuất lần sau
             configManager.GetConfig.InputFolder = TxtFolderPath.Text
-            configManager.GetConfig.OutputFolder = Path.GetDirectoryName(TxtExportFolder.Text)
+            configManager.GetConfig.OutputFolder = TxtOutputFolder.Text
+            configManager.GetConfig.QRCodeLink = TxtQRCodeData.Text
             configManager.GetConfig.LastWeekExport = outputPath
             configManager.SaveConfig()
             TxtPhieuLienLacPath.Text = outputPath
@@ -188,7 +190,7 @@ Public Class PhieuLienLac
     End Sub
 
     Private Async Sub InLaiPhieu()
-        Dim excelReader As New ExcelManager
+        Dim excelReader As New ExcelManager(Application.StartupPath, TxtQRCodeData.Text.Trim)
         Try
             Dim soThuTuHS As String() = Nothing
 
@@ -265,9 +267,9 @@ Public Class PhieuLienLac
             Return False
         End If
 
-        If String.IsNullOrEmpty(TxtExportFolder.Text) Then
+        If String.IsNullOrEmpty(TxtOutputFolder.Text) Then
             MsgBox("Chưa chọn thư mục để lưu phiếu xuất", MsgBoxStyle.Exclamation)
-            TxtExportFolder.Focus()
+            TxtOutputFolder.Focus()
             Return False
         End If
 

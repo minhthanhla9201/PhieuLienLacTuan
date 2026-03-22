@@ -23,6 +23,7 @@ Partial Class PhieuLienLac
     <System.Diagnostics.DebuggerStepThrough()> _
     Private Sub InitializeComponent()
         Me.components = New System.ComponentModel.Container()
+        Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(PhieuLienLac))
         Me.Label1 = New System.Windows.Forms.Label()
         Me.CboFileTongHop = New System.Windows.Forms.ComboBox()
         Me.Label2 = New System.Windows.Forms.Label()
@@ -30,7 +31,7 @@ Partial Class PhieuLienLac
         Me.BtnSelectFolder = New System.Windows.Forms.Button()
         Me.BtnTaoPhieu = New System.Windows.Forms.Button()
         Me.BtnSelectFolderExport = New System.Windows.Forms.Button()
-        Me.TxtExportFolder = New System.Windows.Forms.TextBox()
+        Me.TxtOutputFolder = New System.Windows.Forms.TextBox()
         Me.Label3 = New System.Windows.Forms.Label()
         Me.ProgressBar1 = New System.Windows.Forms.ProgressBar()
         Me.LblStatus = New System.Windows.Forms.Label()
@@ -43,6 +44,8 @@ Partial Class PhieuLienLac
         Me.BtnSelectPhieuLienLac = New System.Windows.Forms.Button()
         Me.BtnInLai = New System.Windows.Forms.Button()
         Me.Label4 = New System.Windows.Forms.Label()
+        Me.Label5 = New System.Windows.Forms.Label()
+        Me.TxtQRCodeData = New System.Windows.Forms.TextBox()
         Me.Panel1.SuspendLayout()
         Me.SuspendLayout()
         '
@@ -113,11 +116,11 @@ Partial Class PhieuLienLac
         '
         'TxtExportFolder
         '
-        Me.TxtExportFolder.Location = New System.Drawing.Point(136, 81)
-        Me.TxtExportFolder.Margin = New System.Windows.Forms.Padding(3, 4, 3, 4)
-        Me.TxtExportFolder.Name = "TxtExportFolder"
-        Me.TxtExportFolder.Size = New System.Drawing.Size(522, 23)
-        Me.TxtExportFolder.TabIndex = 7
+        Me.TxtOutputFolder.Location = New System.Drawing.Point(136, 81)
+        Me.TxtOutputFolder.Margin = New System.Windows.Forms.Padding(3, 4, 3, 4)
+        Me.TxtOutputFolder.Name = "TxtExportFolder"
+        Me.TxtOutputFolder.Size = New System.Drawing.Size(522, 23)
+        Me.TxtOutputFolder.TabIndex = 7
         '
         'Label3
         '
@@ -130,7 +133,7 @@ Partial Class PhieuLienLac
         '
         'ProgressBar1
         '
-        Me.ProgressBar1.Location = New System.Drawing.Point(136, 244)
+        Me.ProgressBar1.Location = New System.Drawing.Point(136, 279)
         Me.ProgressBar1.Name = "ProgressBar1"
         Me.ProgressBar1.Size = New System.Drawing.Size(474, 23)
         Me.ProgressBar1.TabIndex = 9
@@ -140,7 +143,7 @@ Partial Class PhieuLienLac
         '
         Me.LblStatus.AutoSize = True
         Me.LblStatus.ForeColor = System.Drawing.Color.RoyalBlue
-        Me.LblStatus.Location = New System.Drawing.Point(133, 272)
+        Me.LblStatus.Location = New System.Drawing.Point(133, 307)
         Me.LblStatus.Name = "LblStatus"
         Me.LblStatus.Size = New System.Drawing.Size(20, 16)
         Me.LblStatus.TabIndex = 10
@@ -150,7 +153,7 @@ Partial Class PhieuLienLac
         'ChkXuatPhieuLoi
         '
         Me.ChkXuatPhieuLoi.AutoSize = True
-        Me.ChkXuatPhieuLoi.Location = New System.Drawing.Point(136, 111)
+        Me.ChkXuatPhieuLoi.Location = New System.Drawing.Point(136, 150)
         Me.ChkXuatPhieuLoi.Name = "ChkXuatPhieuLoi"
         Me.ChkXuatPhieuLoi.Size = New System.Drawing.Size(122, 20)
         Me.ChkXuatPhieuLoi.TabIndex = 11
@@ -160,7 +163,7 @@ Partial Class PhieuLienLac
         'ChkInLaiPhieu
         '
         Me.ChkInLaiPhieu.AutoSize = True
-        Me.ChkInLaiPhieu.Location = New System.Drawing.Point(39, 155)
+        Me.ChkInLaiPhieu.Location = New System.Drawing.Point(39, 190)
         Me.ChkInLaiPhieu.Name = "ChkInLaiPhieu"
         Me.ChkInLaiPhieu.Size = New System.Drawing.Size(90, 20)
         Me.ChkInLaiPhieu.TabIndex = 12
@@ -170,7 +173,7 @@ Partial Class PhieuLienLac
         'TxtPhieuInLai
         '
         Me.TxtPhieuInLai.Enabled = False
-        Me.TxtPhieuInLai.Location = New System.Drawing.Point(136, 154)
+        Me.TxtPhieuInLai.Location = New System.Drawing.Point(136, 189)
         Me.TxtPhieuInLai.Name = "TxtPhieuInLai"
         Me.TxtPhieuInLai.Size = New System.Drawing.Size(522, 23)
         Me.TxtPhieuInLai.TabIndex = 13
@@ -182,6 +185,8 @@ Partial Class PhieuLienLac
         '
         'Panel1
         '
+        Me.Panel1.Controls.Add(Me.TxtQRCodeData)
+        Me.Panel1.Controls.Add(Me.Label5)
         Me.Panel1.Controls.Add(Me.TxtPhieuLienLacPath)
         Me.Panel1.Controls.Add(Me.TxtPhieuInLai)
         Me.Panel1.Controls.Add(Me.Label1)
@@ -197,19 +202,19 @@ Partial Class PhieuLienLac
         Me.Panel1.Controls.Add(Me.BtnSelectFolderExport)
         Me.Panel1.Controls.Add(Me.BtnInLai)
         Me.Panel1.Controls.Add(Me.BtnTaoPhieu)
-        Me.Panel1.Controls.Add(Me.TxtExportFolder)
+        Me.Panel1.Controls.Add(Me.TxtOutputFolder)
         Me.Panel1.Controls.Add(Me.Label4)
         Me.Panel1.Controls.Add(Me.Label3)
         Me.Panel1.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Panel1.Location = New System.Drawing.Point(0, 0)
         Me.Panel1.Name = "Panel1"
-        Me.Panel1.Size = New System.Drawing.Size(828, 308)
+        Me.Panel1.Size = New System.Drawing.Size(828, 401)
         Me.Panel1.TabIndex = 14
         '
         'TxtPhieuLienLacPath
         '
         Me.TxtPhieuLienLacPath.Enabled = False
-        Me.TxtPhieuLienLacPath.Location = New System.Drawing.Point(136, 183)
+        Me.TxtPhieuLienLacPath.Location = New System.Drawing.Point(136, 218)
         Me.TxtPhieuLienLacPath.Name = "TxtPhieuLienLacPath"
         Me.TxtPhieuLienLacPath.Size = New System.Drawing.Size(522, 23)
         Me.TxtPhieuLienLacPath.TabIndex = 14
@@ -217,7 +222,7 @@ Partial Class PhieuLienLac
         'BtnSelectPhieuLienLac
         '
         Me.BtnSelectPhieuLienLac.Enabled = False
-        Me.BtnSelectPhieuLienLac.Location = New System.Drawing.Point(664, 180)
+        Me.BtnSelectPhieuLienLac.Location = New System.Drawing.Point(664, 215)
         Me.BtnSelectPhieuLienLac.Margin = New System.Windows.Forms.Padding(3, 4, 3, 4)
         Me.BtnSelectPhieuLienLac.Name = "BtnSelectPhieuLienLac"
         Me.BtnSelectPhieuLienLac.Size = New System.Drawing.Size(35, 28)
@@ -229,7 +234,7 @@ Partial Class PhieuLienLac
         '
         Me.BtnInLai.Cursor = System.Windows.Forms.Cursors.Hand
         Me.BtnInLai.Enabled = False
-        Me.BtnInLai.Location = New System.Drawing.Point(717, 146)
+        Me.BtnInLai.Location = New System.Drawing.Point(717, 181)
         Me.BtnInLai.Name = "BtnInLai"
         Me.BtnInLai.Size = New System.Drawing.Size(93, 56)
         Me.BtnInLai.TabIndex = 5
@@ -239,22 +244,40 @@ Partial Class PhieuLienLac
         'Label4
         '
         Me.Label4.AutoSize = True
-        Me.Label4.Location = New System.Drawing.Point(11, 186)
+        Me.Label4.Location = New System.Drawing.Point(11, 221)
         Me.Label4.Name = "Label4"
         Me.Label4.Size = New System.Drawing.Size(118, 16)
         Me.Label4.TabIndex = 6
         Me.Label4.Text = "File liên lạc đã xuất"
         '
+        'Label5
+        '
+        Me.Label5.AutoSize = True
+        Me.Label5.Location = New System.Drawing.Point(78, 118)
+        Me.Label5.Name = "Label5"
+        Me.Label5.Size = New System.Drawing.Size(54, 16)
+        Me.Label5.TabIndex = 15
+        Me.Label5.Text = "QRCode"
+        '
+        'TxtQRCodeData
+        '
+        Me.TxtQRCodeData.Location = New System.Drawing.Point(138, 115)
+        Me.TxtQRCodeData.Margin = New System.Windows.Forms.Padding(3, 4, 3, 4)
+        Me.TxtQRCodeData.Name = "TxtQRCodeData"
+        Me.TxtQRCodeData.Size = New System.Drawing.Size(522, 23)
+        Me.TxtQRCodeData.TabIndex = 16
+        '
         'PhieuLienLac
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(7.0!, 16.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
-        Me.ClientSize = New System.Drawing.Size(828, 308)
+        Me.ClientSize = New System.Drawing.Size(828, 401)
         Me.Controls.Add(Me.Panel1)
         Me.Font = New System.Drawing.Font("Tahoma", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.Icon = CType(resources.GetObject("$this.Icon"), System.Drawing.Icon)
         Me.Margin = New System.Windows.Forms.Padding(3, 4, 3, 4)
         Me.Name = "PhieuLienLac"
-        Me.Text = "Phiếu Liên Lạc Tuần"
+        Me.Text = "Phiếu Liên Lạc"
         Me.Panel1.ResumeLayout(False)
         Me.Panel1.PerformLayout()
         Me.ResumeLayout(False)
@@ -268,7 +291,7 @@ Partial Class PhieuLienLac
     Friend WithEvents BtnSelectFolder As Button
     Friend WithEvents BtnTaoPhieu As Button
     Friend WithEvents BtnSelectFolderExport As Button
-    Friend WithEvents TxtExportFolder As TextBox
+    Friend WithEvents TxtOutputFolder As TextBox
     Friend WithEvents Label3 As Label
     Friend WithEvents ProgressBar1 As ProgressBar
     Friend WithEvents LblStatus As Label
@@ -281,4 +304,6 @@ Partial Class PhieuLienLac
     Friend WithEvents TxtPhieuLienLacPath As TextBox
     Friend WithEvents BtnSelectPhieuLienLac As Button
     Friend WithEvents BtnInLai As Button
+    Friend WithEvents TxtQRCodeData As TextBox
+    Friend WithEvents Label5 As Label
 End Class
