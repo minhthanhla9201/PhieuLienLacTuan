@@ -8,8 +8,8 @@ Imports System.Runtime.InteropServices
 
 ' Review the values of the assembly attributes
 
-<Assembly: AssemblyTitle("PhieuLienLac")>
-<Assembly: AssemblyDescription("")>
+<Assembly: AssemblyTitle("Phiếu Liên Lạc")>
+<Assembly: AssemblyDescription("Phiếu liên lạc tuần cúa học sinh")>
 <Assembly: AssemblyCompany("")>
 <Assembly: AssemblyProduct("PhieuLienLac")>
 <Assembly: AssemblyCopyright("Copyright ©  2025")>

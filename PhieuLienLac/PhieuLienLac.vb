@@ -5,8 +5,10 @@ Public Class PhieuLienLac
 
     Private Sub ComboBox1_SelectedIndexChanged(sender As Object, e As EventArgs) Handles CboFileTongHop.SelectedIndexChanged
         If Not String.IsNullOrEmpty(CboFileTongHop.SelectedItem) Then
-            Dim tuan As String = Path.GetFileNameWithoutExtension(CboFileTongHop.SelectedItem).Split("_")(1).Trim
-            TxtOutputFolder.Text = Path.Combine(configManager.GetConfig.OutputFolder, tuan)
+            Dim pathData As String() = Path.GetFileNameWithoutExtension(CboFileTongHop.SelectedItem).Split("_")
+            If pathData.Count > 1 Then
+                TxtOutputFolder.Text = Path.Combine(configManager.GetConfig.OutputFolder, pathData(1).Trim)
+            End If
         Else
             TxtOutputFolder.Text = configManager.GetConfig.OutputFolder
         End If
@@ -125,6 +127,8 @@ Public Class PhieuLienLac
                         Exit Sub
                     End If
                 End If
+            Else
+                MsgBox("Thư mục đích chưa tồn tại, bạn phải tạo trước khi tiếp tục thực hiện xuất!", MsgBoxStyle.Exclamation)
             End If
 
             Me.Cursor = Cursors.WaitCursor
